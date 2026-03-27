@@ -72,7 +72,8 @@
 
     <script>
       (function () {
-        const COUNTAPI_NAMESPACE = "manus_swhyhxzr1gfyyxr";
+        const COUNTERAPI_NAMESPACE = "manus_swhyhxzr1gfyyxr";
+        const COUNTERAPI_BASE = "https://api.counterapi.dev/v1";
         const TIME_ZONE = "Asia/Shanghai";
         const MANUS_APP = "https://manus.im/app";
 
@@ -91,9 +92,9 @@
         }).format(new Date());
 
         const hit = (key) => {
-          const url = `https://api.countapi.xyz/hit/${COUNTAPI_NAMESPACE}/${encodeURIComponent(
+          const url = `${COUNTERAPI_BASE}/${COUNTERAPI_NAMESPACE}/${encodeURIComponent(
             key
-          )}`;
+          )}/up`;
           return fetch(url, {
             method: "GET",
             mode: "cors",

@@ -70,13 +70,18 @@
             >
           </div>
           <div class="footer">
-            每 10 秒自动刷新；如果某个渠道没显示，通常是今天还没有数据（默认为 0）。
+            自动刷新间隔 60 秒（避免 CounterAPI 速率限制）。想立即刷新，直接手动刷新本页即可。
           </div>
         </div>
       </div>
 
       <div class="card" style="margin-top: 12px">
         <h2>渠道明细（今日）</h2>
+        <div class="actions" style="margin: 0 0 10px">
+          <a class="button" id="prevPage" href="#">上一页</a>
+          <a class="button" id="nextPage" href="#">下一页</a>
+          <span class="pill" id="pageInfo">—</span>
+        </div>
         <table class="table">
           <thead>
             <tr>
@@ -91,14 +96,15 @@
       </div>
 
       <div class="footer">
-        提醒：想要“每天 15 个真实注册”，通常需要更高的点击量（比如 150–300/天）以及更强的内容/激励。
-        我这里提供的是可验证的数据链路和可复制的投放入口，避免你“看不到数据”。
+        提醒：你要的目标是“每天 ≥15 个真实注册”。这个面板能帮你立刻看到“点击/回流”数据，但要稳定到
+        15 注册/天，通常需要更高点击量（比如 150–300/天）或更强激励/内容。
       </div>
     </div>
 
     <script>
       (function () {
-        const COUNTAPI_NAMESPACE = "manus_swhyhxzr1gfyyxr";
+        const COUNTERAPI_NAMESPACE = "manus_swhyhxzr1gfyyxr";
+        const COUNTERAPI_BASE = "https://api.counterapi.dev/v1";
         const TIME_ZONE = "Asia/Shanghai";
         const INVITE_CODE = "SWHYHXZR1GFYYXR";
 
@@ -120,6 +126,9 @@
           { src: "substack", name: "Substack" },
         ];
 
+        const PAGE_SIZE = 10;
+        const pages = Math.max(1, Math.ceil(sources.length / PAGE_SIZE));
+
         const date = new Intl.DateTimeFormat("en-CA", {
           timeZone: TIME_ZONE,
           year: "numeric",
@@ -127,31 +136,37 @@
           day: "2-digit",
         }).format(new Date());
 
-        const get = async (key) => {
-          const url = `https://api.countapi.xyz/get/${COUNTAPI_NAMESPACE}/${encodeURIComponent(
-            key
-          )}`;
-          try {
-            const res = await fetch(url, { cache: "no-store" });
-            if (!res.ok) return 0;
-            const json = await res.json();
-            return Number(json && json.value) || 0;
-          } catch {
-            return 0;
-          }
-        };
+        const search = new URLSearchParams(window.location.search);
+        const pageFromQuery = Number(search.get("page") || "1");
+        const page = Number.isFinite(pageFromQuery)
+          ? Math.min(Math.max(1, pageFromQuery), pages)
+          : 1;
 
         const setText = (id, value) => {
           const el = document.getElementById(id);
           if (el) el.textContent = String(value);
         };
 
+        const getCount = async (key) => {
+          const url = `${COUNTERAPI_BASE}/${COUNTERAPI_NAMESPACE}/${encodeURIComponent(
+            key
+          )}/`;
+          try {
+            const res = await fetch(url, { cache: "no-store" });
+            if (!res.ok) return 0;
+            const json = await res.json();
+            return Number(json && json.count) || 0;
+          } catch {
+            return 0;
+          }
+        };
+
         const refresh = async () => {
           const [clickTotal, convTotal, clickToday, convToday] = await Promise.all([
-            get("click_total"),
-            get("conv_total"),
-            get(`click_${date}_total`),
-            get(`conv_${date}_total`),
+            getCount("click_total"),
+            getCount("conv_total"),
+            getCount(`click_${date}_total`),
+            getCount(`conv_${date}_total`),
           ]);
 
           setText("kpiClickTotal", clickTotal);
@@ -162,30 +177,60 @@
           const rows = document.getElementById("rows");
           rows.innerHTML = "";
 
-          for (const s of sources) {
-            const [c, v] = await Promise.all([
-              get(`click_${date}_${s.src}`),
-              get(`conv_${date}_${s.src}`),
-            ]);
+          const start = (page - 1) * PAGE_SIZE;
+          const end = Math.min(sources.length, start + PAGE_SIZE);
+          const visibleSources = sources.slice(start, end);
 
+          const counts = await Promise.all(
+            visibleSources.map(async (s) => {
+              const [c, v] = await Promise.all([
+                getCount(`click_${date}_${s.src}`),
+                getCount(`conv_${date}_${s.src}`),
+              ]);
+              return { ...s, click: c, conv: v };
+            })
+          );
+
+          for (const s of counts) {
             const tr = document.createElement("tr");
             tr.innerHTML = `
               <td>${s.name}</td>
               <td><span class="pill">${s.src}</span></td>
-              <td>${c}</td>
-              <td>${v}</td>
+              <td>${s.click}</td>
+              <td>${s.conv}</td>
             `;
             rows.appendChild(tr);
           }
 
+          const now = new Date().toLocaleTimeString();
           setText(
             "metaLine",
-            `今日：${date}（${TIME_ZONE}） · 邀请码：${INVITE_CODE} · 最近刷新：${new Date().toLocaleTimeString()}`
+            `今日：${date}（${TIME_ZONE}） · 邀请码：${INVITE_CODE} · 页面：${page}/${pages} · 最近刷新：${now}`
           );
         };
 
+        const updatePager = () => {
+          const prev = document.getElementById("prevPage");
+          const next = document.getElementById("nextPage");
+          const pageInfo = document.getElementById("pageInfo");
+
+          const buildUrl = (p) => {
+            const u = new URL(window.location.href);
+            u.searchParams.set("page", String(p));
+            return u.toString();
+          };
+
+          const prevPage = page > 1 ? page - 1 : 1;
+          const nextPage = page < pages ? page + 1 : pages;
+
+          prev.href = buildUrl(prevPage);
+          next.href = buildUrl(nextPage);
+          pageInfo.textContent = `显示第 ${page}/${pages} 页（每页 ${PAGE_SIZE} 个渠道）`;
+        };
+
+        updatePager();
         refresh();
-        setInterval(refresh, 10_000);
+        setInterval(refresh, 60_000);
       })();
     </script>
   </body>
