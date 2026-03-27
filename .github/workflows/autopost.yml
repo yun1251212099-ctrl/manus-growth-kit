@@ -1,0 +1,54 @@
+name: Auto Post Invite Link
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Asia/Shanghai: 09:30 / 13:30 / 20:30  (UTC: 01:30 / 05:30 / 12:30)
+    - cron: "30 1 * * *"
+    - cron: "30 5 * * *"
+    - cron: "30 12 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Auto post
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          CONV: ${{ secrets.CONV }}
+          MESSAGE_TEMPLATE: ${{ secrets.MESSAGE_TEMPLATE }}
+          UTM_MEDIUM: ${{ secrets.UTM_MEDIUM }}
+          UTM_CAMPAIGN: ${{ secrets.UTM_CAMPAIGN }}
+
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_SRC: ${{ secrets.TELEGRAM_SRC }}
+
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_SRC: ${{ secrets.DISCORD_SRC }}
+
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_SRC: ${{ secrets.SLACK_SRC }}
+
+          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          MASTODON_VISIBILITY: ${{ secrets.MASTODON_VISIBILITY }}
+          MASTODON_SRC: ${{ secrets.MASTODON_SRC }}
+
+          BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          BLUESKY_PDS: ${{ secrets.BLUESKY_PDS }}
+          BLUESKY_SRC: ${{ secrets.BLUESKY_SRC }}
+        run: node scripts/autopost.mjs
+
