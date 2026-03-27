@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>投放链接（可一键复制）</title>
+    <link rel="stylesheet" href="../assets/style.css" />
+    <style>
+      .links {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      @media (min-width: 860px) {
+        .links {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .rowline {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        word-break: break-all;
+        color: var(--muted);
+      }
+      button.button {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="title">投放链接（可一键复制）</div>
+      <div class="subtitle">
+        规则：每个平台用不同的 <span class="pill">src</span>，你就能在
+        <a href="../dashboard/" class="button" style="height: 28px; padding: 0 10px">数据面板</a>
+        里看到来源。
+      </div>
+
+      <div class="card">
+        <h2>你的主入口</h2>
+        <div class="rowline">
+          <div class="mono" id="rootUrl">—</div>
+          <div class="actions">
+            <button class="button" id="copyRoot">复制</button>
+            <a class="button primary" href="../go/?src=direct" target="_blank" rel="noreferrer">打开</a>
+          </div>
+        </div>
+        <div class="footer">
+          建议投放用：<span class="pill">/go/?src=xxx</span>（统计点击）
+          或 <span class="pill">/go/?src=xxx&conv=1</span>（尝试统计回流）。
+        </div>
+      </div>
+
+      <div class="links" style="margin-top: 12px" id="list"></div>
+
+      <div class="footer">
+        注意：不要群发骚扰/刷屏。建议发“你用 Manus 做了什么”的真实案例，再挂链接，转化会高很多。
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const channels = [
+          { src: "moment", name: "朋友圈" },
+          { src: "wechat_group", name: "微信群" },
+          { src: "weibo", name: "微博" },
+          { src: "zhihu", name: "知乎" },
+          { src: "bilibili", name: "B站" },
+          { src: "juejin", name: "掘金" },
+          { src: "v2ex", name: "V2EX" },
+          { src: "csdn", name: "CSDN" },
+          { src: "x", name: "X/Twitter" },
+          { src: "reddit", name: "Reddit" },
+          { src: "hn", name: "Hacker News" },
+          { src: "telegram", name: "Telegram" },
+          { src: "discord", name: "Discord" },
+          { src: "medium", name: "Medium" },
+          { src: "substack", name: "Substack" },
+        ];
+
+        const root = new URL("../", window.location.href);
+        const rootText = root.toString();
+
+        const rootEl = document.getElementById("rootUrl");
+        rootEl.textContent = rootText;
+
+        const copyText = async (text) => {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch {
+            return false;
+          }
+        };
+
+        document.getElementById("copyRoot").addEventListener("click", async () => {
+          const ok = await copyText(rootText);
+          if (!ok) alert("复制失败：请手动复制。\n" + rootText);
+        });
+
+        const list = document.getElementById("list");
+
+        const buildGo = (src, conv) => {
+          const u = new URL("go/", root);
+          u.searchParams.set("src", src);
+          if (conv) u.searchParams.set("conv", "1");
+          return u.toString();
+        };
+
+        for (const c of channels) {
+          const clickUrl = buildGo(c.src, false);
+          const convUrl = buildGo(c.src, true);
+
+          const card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = `
+            <h2>${c.name}</h2>
+            <div class="mono">src=${c.src}</div>
+            <div class="footer" style="margin-top: 8px">
+              <div class="rowline">
+                <div class="mono">${clickUrl}</div>
+                <div class="actions">
+                  <button class="button" data-copy="${clickUrl}">复制点击</button>
+                  <a class="button primary" href="${clickUrl}" target="_blank" rel="noreferrer">打开</a>
+                </div>
+              </div>
+              <div class="rowline" style="margin-top: 8px">
+                <div class="mono">${convUrl}</div>
+                <div class="actions">
+                  <button class="button" data-copy="${convUrl}">复制回流</button>
+                  <a class="button" href="${convUrl}" target="_blank" rel="noreferrer">打开</a>
+                </div>
+              </div>
+            </div>
+          `;
+
+          card.querySelectorAll("button[data-copy]").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+              const text = btn.getAttribute("data-copy") || "";
+              const ok = await copyText(text);
+              if (!ok) alert("复制失败：请手动复制。\n" + text);
+            });
+          });
+
+          list.appendChild(card);
+        }
+      })();
+    </script>
+  </body>
+</html>
