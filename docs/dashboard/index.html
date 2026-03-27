@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Manus 引流数据面板</title>
+    <link rel="stylesheet" href="../assets/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="title">Manus 引流数据面板</div>
+      <div class="subtitle">
+        这是一个“零账号、零后端”的实时统计：点击来自
+        <span class="pill">/go/?src=xxx</span>，可选完成回流来自
+        <span class="pill">/go/?src=xxx&amp;conv=1</span>（依赖 Manus 是否允许外部
+        <span class="pill">redirectUrl</span>）。
+      </div>
+
+      <div class="row">
+        <div class="card">
+          <h2>今日 KPI（Asia/Shanghai）</h2>
+          <div class="kpi">
+            <div class="metric">
+              <div class="label">今日点击（总）</div>
+              <div class="value" id="kpiClickToday">—</div>
+            </div>
+            <div class="metric">
+              <div class="label">今日完成（总）</div>
+              <div class="value" id="kpiConvToday">—</div>
+            </div>
+            <div class="metric">
+              <div class="label">累计点击（总）</div>
+              <div class="value" id="kpiClickTotal">—</div>
+            </div>
+            <div class="metric">
+              <div class="label">累计完成（总）</div>
+              <div class="value" id="kpiConvTotal">—</div>
+            </div>
+          </div>
+
+          <div class="footer" id="metaLine">—</div>
+        </div>
+
+        <div class="card">
+          <h2>快速入口</h2>
+          <div class="actions">
+            <a
+              class="button primary"
+              id="openGoDirect"
+              href="../go/"
+              target="_blank"
+              rel="noreferrer"
+              >/go/（src=direct）</a
+            >
+            <a
+              class="button"
+              id="openGoConv"
+              href="../go/?src=direct&conv=1"
+              target="_blank"
+              rel="noreferrer"
+              >/go/（conv=1）</a
+            >
+            <a
+              class="button"
+              id="openDone"
+              href="../done/"
+              target="_blank"
+              rel="noreferrer"
+              >/done/（手动打开测试）</a
+            >
+          </div>
+          <div class="footer">
+            每 10 秒自动刷新；如果某个渠道没显示，通常是今天还没有数据（默认为 0）。
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 12px">
+        <h2>渠道明细（今日）</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 160px">渠道</th>
+              <th style="width: 160px">src</th>
+              <th>点击</th>
+              <th>完成</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div class="footer">
+        提醒：想要“每天 15 个真实注册”，通常需要更高的点击量（比如 150–300/天）以及更强的内容/激励。
+        我这里提供的是可验证的数据链路和可复制的投放入口，避免你“看不到数据”。
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const COUNTAPI_NAMESPACE = "manus_swhyhxzr1gfyyxr";
+        const TIME_ZONE = "Asia/Shanghai";
+        const INVITE_CODE = "SWHYHXZR1GFYYXR";
+
+        const sources = [
+          { src: "moment", name: "朋友圈" },
+          { src: "wechat_group", name: "微信群" },
+          { src: "weibo", name: "微博" },
+          { src: "zhihu", name: "知乎" },
+          { src: "bilibili", name: "B站" },
+          { src: "x", name: "X/Twitter" },
+          { src: "reddit", name: "Reddit" },
+          { src: "hn", name: "Hacker News" },
+          { src: "telegram", name: "Telegram" },
+          { src: "discord", name: "Discord" },
+          { src: "juejin", name: "掘金" },
+          { src: "v2ex", name: "V2EX" },
+          { src: "csdn", name: "CSDN" },
+          { src: "medium", name: "Medium" },
+          { src: "substack", name: "Substack" },
+        ];
+
+        const date = new Intl.DateTimeFormat("en-CA", {
+          timeZone: TIME_ZONE,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
+
+        const get = async (key) => {
+          const url = `https://api.countapi.xyz/get/${COUNTAPI_NAMESPACE}/${encodeURIComponent(
+            key
+          )}`;
+          try {
+            const res = await fetch(url, { cache: "no-store" });
+            if (!res.ok) return 0;
+            const json = await res.json();
+            return Number(json && json.value) || 0;
+          } catch {
+            return 0;
+          }
+        };
+
+        const setText = (id, value) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = String(value);
+        };
+
+        const refresh = async () => {
+          const [clickTotal, convTotal, clickToday, convToday] = await Promise.all([
+            get("click_total"),
+            get("conv_total"),
+            get(`click_${date}_total`),
+            get(`conv_${date}_total`),
+          ]);
+
+          setText("kpiClickTotal", clickTotal);
+          setText("kpiConvTotal", convTotal);
+          setText("kpiClickToday", clickToday);
+          setText("kpiConvToday", convToday);
+
+          const rows = document.getElementById("rows");
+          rows.innerHTML = "";
+
+          for (const s of sources) {
+            const [c, v] = await Promise.all([
+              get(`click_${date}_${s.src}`),
+              get(`conv_${date}_${s.src}`),
+            ]);
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${s.name}</td>
+              <td><span class="pill">${s.src}</span></td>
+              <td>${c}</td>
+              <td>${v}</td>
+            `;
+            rows.appendChild(tr);
+          }
+
+          setText(
+            "metaLine",
+            `今日：${date}（${TIME_ZONE}） · 邀请码：${INVITE_CODE} · 最近刷新：${new Date().toLocaleTimeString()}`
+          );
+        };
+
+        refresh();
+        setInterval(refresh, 10_000);
+      })();
+    </script>
+  </body>
+</html>

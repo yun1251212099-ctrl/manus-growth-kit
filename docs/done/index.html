@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>已完成，正在进入 Manus…</title>
+    <meta http-equiv="refresh" content="3; url=https://manus.im/app" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --text: rgba(0, 0, 0, 0.88);
+        --muted: rgba(0, 0, 0, 0.64);
+        --bg: #f6f7fb;
+        --card: rgba(0, 0, 0, 0.04);
+        --border: rgba(0, 0, 0, 0.12);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --text: rgba(255, 255, 255, 0.92);
+          --muted: rgba(255, 255, 255, 0.72);
+          --bg: #0b0d10;
+          --card: rgba(255, 255, 255, 0.06);
+          --border: rgba(255, 255, 255, 0.14);
+        }
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, Helvetica, Arial;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 740px;
+        margin: 0 auto;
+        padding: 32px 18px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 14px;
+        padding: 16px 16px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 12px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      a {
+        color: inherit;
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>已记录完成，正在进入 Manus…</h1>
+        <p>
+          如果没有自动跳转，点这里：
+          <a id="fallback" href="https://manus.im/app">进入 Manus</a>
+        </p>
+        <p class="muted">
+          说明：该页用于统计“完成/到达”数量（可当作注册完成信号）。
+        </p>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const COUNTAPI_NAMESPACE = "manus_swhyhxzr1gfyyxr";
+        const TIME_ZONE = "Asia/Shanghai";
+        const MANUS_APP = "https://manus.im/app";
+
+        const params = new URLSearchParams(window.location.search);
+        const srcRaw = params.get("src") || "direct";
+        const src = srcRaw
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]/g, "_")
+          .slice(0, 40);
+
+        const date = new Intl.DateTimeFormat("en-CA", {
+          timeZone: TIME_ZONE,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
+
+        const hit = (key) => {
+          const url = `https://api.countapi.xyz/hit/${COUNTAPI_NAMESPACE}/${encodeURIComponent(
+            key
+          )}`;
+          return fetch(url, {
+            method: "GET",
+            mode: "cors",
+            cache: "no-store",
+            keepalive: true,
+          }).catch(() => null);
+        };
+
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        const convKeys = [
+          "conv_total",
+          `conv_${date}_total`,
+          `conv_${date}_${src}`,
+        ];
+
+        const logConv = Promise.allSettled(convKeys.map(hit));
+
+        Promise.race([logConv, sleep(320)]).finally(() => {
+          window.location.replace(MANUS_APP);
+        });
+      })();
+    </script>
+  </body>
+</html>
